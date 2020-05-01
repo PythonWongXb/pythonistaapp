@@ -170,7 +170,7 @@ def read_user_by_email(
         db: Session = Depends(deps.get_db),
 ) -> Any:
     """
-    Get a specific user by id.
+    Get a specific user by email.
     """
     user = crud.user.get_by_email(db, email=email)
     if user == current_user:
@@ -186,7 +186,30 @@ def read_user_by_email(
     )
 
 
-@router.get('/SearchAll', response_model=List[schemas.User])
+@router.get("/SearchName/{fullname}", response_model=List[schemas.User], tags=['search', 'SearchFullName'])
+def read_user_by_fullname(
+        fullname: str,
+        current_user: models.User = Depends(deps.get_current_active_user),
+        db: Session = Depends(deps.get_db),
+) -> Any:
+    """
+        Get a specific user by full_name.
+        """
+    user = crud.user.get_user_by_name(db, name=fullname)
+    if user == current_user:
+        return user
+    if not crud.user.is_superuser(current_user):
+        raise HTTPException(
+            status_code=400, detail="没有权限"
+        )
+    if user:
+        return user
+    raise HTTPException(
+        status_code=400, detail="没有该用户"
+    )
+
+
+@router.get('/SearchAll', response_model=List[schemas.User], tags=['search', 'SearchAll'])
 def read_user_all(
         db: Session = Depends(deps.get_db),
         current_user: models.User = Depends(deps.get_current_active_user)
@@ -201,18 +224,33 @@ def read_user_all(
         )
 
 
-@router.put("/{user_id}", response_model=schemas.User)
+@router.get('/SearchInactiveUsers', response_model=List[schemas.User], tags=['search', 'SearchInactiveUsers'])
+def read_inactive_users(
+        db: Session = Depends(deps.get_db),
+        current_user: models.User = Depends(deps.get_current_active_user)
+
+):
+    users = crud.user.get_inactive_users(db=db)
+    if users:
+        return users
+    else:
+        raise HTTPException(
+            status_code=400, detail="没有被封的用户"
+        )
+
+
+@router.put("/{email}", response_model=schemas.User)
 def update_user(
         *,
         db: Session = Depends(deps.get_db),
-        user_id: int,
+        email: str,
         user_in: schemas.UserUpdate,
         current_user: models.User = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """
     Update a user.
     """
-    user = crud.user.get(db, id=user_id)
+    user = crud.user.get_by_email(db, email=email)
     if not user:
         raise HTTPException(
             status_code=404,

@@ -30,6 +30,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def get(self, db: Session, id: Any) -> Optional[ModelType]:
         return db.query(self.model).filter(self.model.id == id).first()
 
+    def get_user_by_name(self, db: Session, name: str):
+        return db.query(self.model).filter(self.model.full_name == name).all()
+
     def get_multi(
             self, db: Session, *, skip: int = 0, limit: int = 10000
     ) -> List[ModelType]:

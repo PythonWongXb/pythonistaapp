@@ -5,16 +5,24 @@ from pydantic import BaseModel, EmailStr
 
 # Shared properties
 class UserBase(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     is_active: Optional[bool] = True
     is_superuser: bool = False
     full_name: Optional[str] = None
-
+    time: int = 0
+    scores: int = 0
+    bind: str = None
+    is_wechat: bool = True
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
-    email: EmailStr
+    email: str
     password: str
+
+
+class WechatUserCreate(UserBase):
+    openid: str
+    key: str
 
 
 # Properties to receive via API on update

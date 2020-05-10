@@ -20,8 +20,14 @@ def init_db(db: Session) -> None:
     user = crud.user.get_by_email(db, email=settings.FIRST_SUPERUSER)
     if not user:
         user_in = schemas.UserCreate(
+            full_name=settings.FULL_NAME,
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,
+            time=521,
+            scores=521,
+            bind=settings.ADMIN_PHONE,
+            is_wechat=False
         )
         user = crud.user.create(db, obj_in=user_in)  # noqa: F841
+        print('初始化数据库成功')

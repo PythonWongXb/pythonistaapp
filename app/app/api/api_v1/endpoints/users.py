@@ -2,7 +2,8 @@ from typing import Any, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from pydantic.networks import EmailStr
+# 改为手机号
+# from pydantic.networks import EmailStr
 from sqlalchemy.orm import Session
 import os
 
@@ -15,14 +16,14 @@ from app.core.config import settings
 from app.utils import send_new_account_email
 
 from app.api.api_v1.endpoints.login import red, read
-
+from app.utils import OpenidUtils
 router = APIRouter()
 
 
 @router.get("/", response_model=List[schemas.User])
 def read_users(
         db: Session = Depends(deps.get_db),
-        skip: int = 0,
+        skip: int = 1,
         limit: int = 100,
         current_user: models.User = Depends(deps.get_current_active_superuser),
 ) -> Any:
@@ -63,7 +64,8 @@ def update_user_me(
         db: Session = Depends(deps.get_db),
         password: str = Body(None),
         full_name: str = Body(None),
-        email: EmailStr = Body(None),
+        email: str = Body(None),
+        bind: str = Body(None),
         current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -77,6 +79,8 @@ def update_user_me(
         user_in.full_name = full_name
     if email is not None:
         user_in.email = email
+    if bind is not None:
+        user_in.bind = bind
     user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
     return user
 
@@ -98,10 +102,11 @@ def create_user_open(
         db: Session = Depends(deps.get_db),
         password_1: str = Body(...),
         password_2: str = Body(...),
-        email: EmailStr = Body(...),
+        email: str = Body(...),
         full_name: str = Body(None),
         uid: str = Body(...),
-        answer: str = Body(...)
+        answer: str = Body(...),
+
 ) -> Any:
     """
     Create new user without the need to be logged in.
@@ -139,10 +144,31 @@ def create_user_open(
             detail="The user with this username already exists in the system",
         )
 
-    user_in = schemas.UserCreate(password=password, email=email, full_name=full_name)
+    user_in = schemas.UserCreate(password=password, email=email, full_name=full_name, is_wechat=False)
     user = crud.user.create(db, obj_in=user_in)
     return user
 
+
+@router.post('/CreatUserByWeChat', response_model=schemas.User)
+def creat_user_wechat(
+        *,
+        db: Session = Depends(deps.get_db),
+        openid: str = Body(...),
+        key: str = Body(...),
+        full_name: str = Body(...)
+
+) -> Any:
+
+    user = crud.user.get_by_email(db, email=openid)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this username already exists in the system",
+        )
+
+    user_in = schemas.UserCreate(password=key, email=openid, full_name=full_name)
+    user = crud.user.create(db, obj_in=user_in)
+    return user
 
 @router.get("/SearchId/{user_id}", response_model=schemas.User, tags=['search', 'SearchId'])
 def read_user_by_id(
@@ -160,7 +186,11 @@ def read_user_by_id(
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )
-    return user
+    if user:
+        return user
+    raise HTTPException(
+        status_code=400, detail="The user doesn't have enough privileges"
+    )
 
 
 @router.get("/SearchEmail/{email}", response_model=schemas.User, tags=['search', 'SearchEmail'])
@@ -258,3 +288,5 @@ def update_user(
         )
     user = crud.user.update(db, db_obj=user, obj_in=user_in)
     return user
+
+# 验证账号密码正确，那么我就应该
